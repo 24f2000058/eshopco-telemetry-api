@@ -1,21 +1,11 @@
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from pathlib import Path
 import json
 import numpy as np
 
-# FIX: Force FastAPI to ignore trailing slashes and stay strictly on the route
 app = FastAPI(redirect_slashes=False)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 class TelemetryRequest(BaseModel):
     regions: List[str]
@@ -28,7 +18,6 @@ JSON_PATH = Path(__file__).parent / "telemetry.json"
 def root():
     return {"status": "healthy", "message": "eShopCo JSON-driven Telemetry API"}
 
-# FIX: Map both "/" and "" to ensure the POST never invokes a redirect loop
 @app.post("/")
 @app.post("")
 def get_metrics(payload: TelemetryRequest):
