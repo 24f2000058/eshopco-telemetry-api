@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from pathlib import Path
@@ -7,17 +8,20 @@ import numpy as np
 
 app = FastAPI()
 
+# Standard FastAPI CORS handling that works across serverless network adapters
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # CRITICAL: Must be False when origin is "*"
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 class TelemetryRequest(BaseModel):
     regions: List[str]
     threshold_ms: float
 
 JSON_PATH = Path(__file__).parent / "telemetry.json"
-
-# CRITICAL: Directly intercept and clear out incoming OPTIONS preflight tests
-@app.options("/")
-@app.options("/{path:path}")
-def options_handler():
-    return {"status": "ok"}
 
 @app.get("/")
 def root():
@@ -38,7 +42,7 @@ def get_metrics(payload: TelemetryRequest):
         region_item = item.get("region", "").lower()
         if region_item in target_regions:
             latency = item.get("latency_ms")
-            # Keep standard percentage conversion intact
+            # Keeps the uptime percentage metric safe
             uptime = item.get("uptime_pct", 100.0) / 100.0 
             
             if latency is not None:
