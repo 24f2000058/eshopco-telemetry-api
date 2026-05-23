@@ -5,15 +5,13 @@ from pathlib import Path
 import json
 import numpy as np
 
-# Import the actual dataset
-from api.data import TELEMETRY_DATA
-
 app = FastAPI()
 
 class TelemetryRequest(BaseModel):
     regions: List[str]
     threshold_ms: float
 
+# Resolve path relative to this file's directory inside Vercel
 JSON_PATH = Path(__file__).parent / "telemetry.json"
 
 @app.get("/")
@@ -67,3 +65,6 @@ def get_metrics(payload: TelemetryRequest):
         }
         
     return response_data
+
+# CRITICAL FOR VERCEL CUSTOM ROUTES: Expose the routing entrypoint directly to the gateway layer
+handler = app
