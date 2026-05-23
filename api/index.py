@@ -64,7 +64,8 @@ def get_metrics(payload: TelemetryRequest):
         
         breaches = int(sum(1 for lat in latencies if lat > payload.threshold_ms))
         
-        response_data[region] = {
+        # Change this specific line inside your final loop:
+        response_data[region.lower()] = {
             "avg_latency": avg_latency,
             "p95_latency": p95_latency,
             "avg_uptime": avg_uptime,
