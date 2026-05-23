@@ -6,14 +6,12 @@ from pathlib import Path
 import json
 import numpy as np
 
-# Clear out strict redirect structures so requests hit endpoints directly
 app = FastAPI(redirect_slashes=False)
 
-# Ironclad, native Python CORS handling that works smoothly across serverless networks
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # CRITICAL: Must stay False when using a wildcard "*" origin
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -63,9 +61,11 @@ def get_metrics(payload: TelemetryRequest):
         latencies = data["latencies"]
         uptimes = data["uptimes"]
         
-        avg_latency = float(np.mean(latencies))
-        p95_latency = float(np.percentile(latencies, 95))
-        avg_uptime = float(np.mean(uptimes)) if uptimes else 100.0
+        # Calculate aggregations and round safely to 4 decimal places 
+        # to clear out any floating-point precision noise
+        avg_latency = round(float(np.mean(latencies)), 4)
+        p95_latency = round(float(np.percentile(latencies, 95)), 4)
+        avg_uptime = round(float(np.mean(uptimes)), 4) if uptimes else 100.0
         
         breaches = int(sum(1 for lat in latencies if lat > payload.threshold_ms))
         
