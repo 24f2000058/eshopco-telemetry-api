@@ -1,22 +1,28 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 from pathlib import Path
 import json
 import numpy as np
 
+# Clear out strict redirect structures so requests hit endpoints directly
 app = FastAPI(redirect_slashes=False)
+
+# Ironclad, native Python CORS handling that works smoothly across serverless networks
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,  # CRITICAL: Must stay False when using a wildcard "*" origin
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class TelemetryRequest(BaseModel):
     regions: List[str]
     threshold_ms: float
 
 JSON_PATH = Path(__file__).parent / "telemetry.json"
-
-@app.options("/")
-@app.options("/{path:path}")
-def options_handler(path: str = None):
-    return {"message": "CORS preflight OK"}
 
 @app.get("/")
 @app.get("")
@@ -32,7 +38,6 @@ def get_metrics(payload: TelemetryRequest):
     except Exception as e:
         return {"error": f"Failed to load telemetry file: {str(e)}"}
 
-    # Track data internally using lowercase keys for safe matching
     target_regions_lower = {r.lower() for r in payload.regions}
     grouped_metrics = {r: {"latencies": [], "uptimes": []} for r in target_regions_lower}
     
@@ -48,7 +53,6 @@ def get_metrics(payload: TelemetryRequest):
                 grouped_metrics[region_item]["uptimes"].append(float(uptime))
 
     response_data = {}
-    # Iterate using the exact original strings the user sent in the request
     for original_region in payload.regions:
         r_key_lower = original_region.lower()
         data = grouped_metrics.get(r_key_lower)
@@ -65,7 +69,6 @@ def get_metrics(payload: TelemetryRequest):
         
         breaches = int(sum(1 for lat in latencies if lat > payload.threshold_ms))
         
-        # CRITICAL FIX: Mirror back the exact original casing provided by the grader
         response_data[original_region] = {
             "avg_latency": avg_latency,
             "p95_latency": p95_latency,
