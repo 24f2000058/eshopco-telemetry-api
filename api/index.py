@@ -11,8 +11,13 @@ class TelemetryRequest(BaseModel):
     regions: List[str]
     threshold_ms: float
 
-# Resolve path relative to this file's directory inside Vercel
 JSON_PATH = Path(__file__).parent / "telemetry.json"
+
+# CRITICAL: Directly intercept and clear out incoming OPTIONS preflight tests
+@app.options("/")
+@app.options("/{path:path}")
+def options_handler():
+    return {"status": "ok"}
 
 @app.get("/")
 def root():
@@ -33,7 +38,7 @@ def get_metrics(payload: TelemetryRequest):
         region_item = item.get("region", "").lower()
         if region_item in target_regions:
             latency = item.get("latency_ms")
-            # Keeps the uptime percentage value safe
+            # Keep standard percentage conversion intact
             uptime = item.get("uptime_pct", 100.0) / 100.0 
             
             if latency is not None:
@@ -66,5 +71,4 @@ def get_metrics(payload: TelemetryRequest):
         
     return response_data
 
-# CRITICAL FOR VERCEL CUSTOM ROUTES: Expose the routing entrypoint directly to the gateway layer
 handler = app
