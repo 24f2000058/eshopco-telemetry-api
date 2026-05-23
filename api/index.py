@@ -13,6 +13,12 @@ class TelemetryRequest(BaseModel):
 
 JSON_PATH = Path(__file__).parent / "telemetry.json"
 
+# FIX: Explicitly catch and clear incoming OPTIONS requests with a pure 200 OK
+@app.options("/")
+@app.options("/{path:path}")
+def options_handler(path: str = None):
+    return {"message": "CORS preflight OK"}
+
 @app.get("/")
 @app.get("")
 def root():
@@ -34,7 +40,6 @@ def get_metrics(payload: TelemetryRequest):
         region_item = item.get("region", "").lower()
         if region_item in target_regions:
             latency = item.get("latency_ms")
-            # FIX: Keep raw database values intact without dividing by 100
             uptime = item.get("uptime_pct") 
             
             if latency is not None:
@@ -57,7 +62,6 @@ def get_metrics(payload: TelemetryRequest):
         p95_latency = float(np.percentile(latencies, 95))
         avg_uptime = float(np.mean(uptimes)) if uptimes else 100.0
         
-        # Count values strictly breaking the custom input threshold
         breaches = int(sum(1 for lat in latencies if lat > payload.threshold_ms))
         
         response_data[region] = {
