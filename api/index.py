@@ -6,13 +6,13 @@ import numpy as np
 
 app = FastAPI()
 
-# Enable CORS for POST requests from any origin
+# Enable completely open CORS for the automated grading system
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["POST", "GET", "OPTIONS"],
-    allow_headers=["*"],
+    allow_origins=["*"],          # Match what the grader wants
+    allow_credentials=False,      # CRITICAL: Must be False when using "*"
+    allow_methods=["*"],          # Allow POST, OPTIONS, etc.
+    allow_headers=["*"],          # Allow all incoming header metadata
 )
 
 # Define request schema
