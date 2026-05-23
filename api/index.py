@@ -8,12 +8,13 @@ import numpy as np
 
 app = FastAPI(redirect_slashes=False)
 
+# FIX: Explicitly grant full permission modifiers inside the middleware
+# to ensure POST payloads bypass browser sandboxes
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Crucial for POST/OPTIONS
+    allow_headers=["*"],  # Crucial for Content-Type
 )
 
 class TelemetryRequest(BaseModel):
@@ -61,8 +62,6 @@ def get_metrics(payload: TelemetryRequest):
         latencies = data["latencies"]
         uptimes = data["uptimes"]
         
-        # Calculate aggregations and round safely to 4 decimal places 
-        # to clear out any floating-point precision noise
         avg_latency = round(float(np.mean(latencies)), 4)
         p95_latency = round(float(np.percentile(latencies, 95)), 4)
         avg_uptime = round(float(np.mean(uptimes)), 4) if uptimes else 100.0
