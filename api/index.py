@@ -6,13 +6,13 @@ from pathlib import Path
 import json
 import numpy as np
 
-app = FastAPI()
+# FIX: Force FastAPI to ignore trailing slashes and stay strictly on the route
+app = FastAPI(redirect_slashes=False)
 
-# Standard FastAPI CORS handling that works across serverless network adapters
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # CRITICAL: Must be False when origin is "*"
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -24,10 +24,13 @@ class TelemetryRequest(BaseModel):
 JSON_PATH = Path(__file__).parent / "telemetry.json"
 
 @app.get("/")
+@app.get("")
 def root():
     return {"status": "healthy", "message": "eShopCo JSON-driven Telemetry API"}
 
+# FIX: Map both "/" and "" to ensure the POST never invokes a redirect loop
 @app.post("/")
+@app.post("")
 def get_metrics(payload: TelemetryRequest):
     try:
         with open(JSON_PATH, "r", encoding="utf-8") as f:
@@ -42,7 +45,6 @@ def get_metrics(payload: TelemetryRequest):
         region_item = item.get("region", "").lower()
         if region_item in target_regions:
             latency = item.get("latency_ms")
-            # Keeps the uptime percentage metric safe
             uptime = item.get("uptime_pct", 100.0) / 100.0 
             
             if latency is not None:
