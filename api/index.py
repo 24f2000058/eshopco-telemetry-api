@@ -5,12 +5,11 @@ from pathlib import Path
 import json
 import numpy as np
 
-app = FastAPI(redirect_slashes=False)
+# Change to True so FastAPI handles trailing slash omissions natively
+app = FastAPI(redirect_slashes=True)
 
-# Explicitly intercept all requests to calculate origin headers dynamically
 @app.middleware("http")
 async def dynamic_cors_handler(request: Request, call_next):
-    # Capture the sender's origin domain dynamically 
     origin = request.headers.get("origin", "*")
     
     if request.method == "OPTIONS":
@@ -23,7 +22,6 @@ async def dynamic_cors_handler(request: Request, call_next):
         return response
     
     response = await call_next(request)
-    # Mirror back the exact requesting domain to clear the browser credentials filter
     response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Credentials"] = "true"
     response.headers["Access-Control-Expose-Headers"] = "Access-Control-Allow-Origin"
@@ -35,14 +33,17 @@ class TelemetryRequest(BaseModel):
 
 JSON_PATH = Path(__file__).parent / "telemetry.json"
 
-@app.get("/")
-@app.get("")
-def root():
+# Catch-all GET routing pattern
+@app.get("/{path:path}")
+def root(path: str = None):
     return {"status": "healthy", "message": "eShopCo JSON-driven Telemetry API"}
 
-@app.post("/")
-@app.post("")
-def get_metrics(payload: TelemetryRequest):
+# Catch-all POST routing pattern to intercept any unhandled path shapes
+@app.post("/{path:path}")
+def get_metrics(path: str = None, payload: TelemetryRequest = None):
+    if payload is None:
+        return {"error": "Missing payload data"}
+        
     try:
         with open(JSON_PATH, "r", encoding="utf-8") as f:
             raw_data = json.load(f)
