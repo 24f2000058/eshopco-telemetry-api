@@ -73,7 +73,7 @@ async def get_metrics(request: Request):
         p95_latency = float(np.percentile(latencies, 95))
         
         # MEAN UPTIME: Let's keep the raw version, but round safely
-        avg_uptime = float(np.mean(uptimes)) if uptimes else 100.0
+        avg_uptime = (float(np.mean(uptimes)) / 100.0) if uptimes else 1.0
         
         # If your grader expects the decimal fraction format (e.g. 0.9834 instead of 98.34),
         # change the calculation to: float(np.mean(uptimes)) / 100.0
