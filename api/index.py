@@ -76,4 +76,4 @@ async def get_telemetry_metrics(payload: TelemetryRequest, response: Response):
             "breaches": breaches
         }
         
-    return results
+    return {"regions": results}
