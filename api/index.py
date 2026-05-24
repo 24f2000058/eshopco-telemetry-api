@@ -9,17 +9,17 @@ import numpy as np
 
 app = FastAPI()
 
-# 1. Standard CORS Middleware configuration
+# Standard CORS Middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=False,  # Must be False if allow_origins is ["*"]
+    allow_credentials=False,
     allow_methods=["POST", "OPTIONS", "GET"],
     allow_headers=["*"],
     expose_headers=["*"],
 )
 
-# 2. Explicit Preflight/OPTIONS handler for Vercel Serverless environment
+# Explicit Preflight/OPTIONS handler for Vercel
 @app.options("/{path:path}")
 async def preflight_handler(request: Request):
     response = Response()
@@ -38,7 +38,6 @@ DATA_PATH = Path(__file__).parent / "telemetry.json"
 
 @app.post("/")
 async def get_telemetry_metrics(payload: TelemetryRequest, response: Response):
-    # Ensure the actual POST response also explicitly injects the wildcard header
     response.headers["Access-Control-Allow-Origin"] = "*"
     
     if not DATA_PATH.exists():
@@ -50,23 +49,26 @@ async def get_telemetry_metrics(payload: TelemetryRequest, response: Response):
     results = {}
     
     for region in payload.regions:
+        # Filter records matching the specific region
         region_records = [r for r in telemetry_data if r.get("region") == region]
         
         if not region_records:
             continue
             
-        latencies = [r["latency"] for r in region_records if "latency" in r]
-        uptimes = [r["uptime"] for r in region_records if "uptime" in r]
+        # Extract fields using your exact JSON schema keys: 'latency_ms' and 'uptime_pct'
+        latencies = [r["latency_ms"] for r in region_records if "latency_ms" in r]
+        uptimes = [r["uptime_pct"] for r in region_records if "uptime_pct" in r]
         
         if not latencies:
             continue
 
-        # Calculations
+        # Mathematical calculations
         avg_latency = float(np.mean(latencies))
         p95_latency = float(np.percentile(latencies, 95))
         avg_uptime = float(np.mean(uptimes))
         breaches = int(sum(1 for l in latencies if l > payload.threshold_ms))
         
+        # Structure fields exactly as needed by the validation check
         results[region] = {
             "avg_latency": round(avg_latency, 2),
             "p95_latency": round(p95_latency, 2),
