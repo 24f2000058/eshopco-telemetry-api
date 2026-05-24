@@ -1,22 +1,32 @@
 import os
 import json
 from pathlib import Path
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List
 import numpy as np
 
 app = FastAPI()
 
-# Enable CORS for POST requests from any origin
+# 1. Standard CORS Middleware configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["POST", "OPTIONS"],
+    allow_credentials=False,  # Must be False if allow_origins is ["*"]
+    allow_methods=["POST", "OPTIONS", "GET"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+# 2. Explicit Preflight/OPTIONS handler for Vercel Serverless environment
+@app.options("/{path:path}")
+async def preflight_handler(request: Request):
+    response = Response()
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS, GET"
+    response.headers["Access-Control-Allow-Headers"] = "*"
+    return response
 
 # Define request schema
 class TelemetryRequest(BaseModel):
@@ -27,7 +37,10 @@ class TelemetryRequest(BaseModel):
 DATA_PATH = Path(__file__).parent / "telemetry.json"
 
 @app.post("/")
-async def get_telemetry_metrics(payload: TelemetryRequest):
+async def get_telemetry_metrics(payload: TelemetryRequest, response: Response):
+    # Ensure the actual POST response also explicitly injects the wildcard header
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    
     if not DATA_PATH.exists():
         raise HTTPException(status_code=500, detail="Telemetry data bundle missing.")
     
@@ -37,7 +50,6 @@ async def get_telemetry_metrics(payload: TelemetryRequest):
     results = {}
     
     for region in payload.regions:
-        # Filter records for the specific region
         region_records = [r for r in telemetry_data if r.get("region") == region]
         
         if not region_records:
@@ -49,7 +61,7 @@ async def get_telemetry_metrics(payload: TelemetryRequest):
         if not latencies:
             continue
 
-        # Mathematical calculations
+        # Calculations
         avg_latency = float(np.mean(latencies))
         p95_latency = float(np.percentile(latencies, 95))
         avg_uptime = float(np.mean(uptimes))
